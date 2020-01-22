@@ -1,0 +1,44 @@
+<?php
+	
+
+use Drupal\Core\Url;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+/**
+ * Implements hook_local_tasks_alter().
+ */
+function biz_lobbyist_registration_local_tasks_alter(&$local_tasks) {
+  unset($local_tasks['user.register']);
+}
+
+
+/**
+ * Implements hook_menu_local_tasks_alter().
+ * Change the title from tabs in registration page
+ */
+function biz_lobbyist_registration_menu_local_tasks_alter(&$data, $route_name) {
+  $forms = ["user.login", "multiple_registration.role_registration_page","user.pass"];
+  if(in_array($route_name, $forms)){
+    $new_tab['#link']['title'] = t("I Don't know");
+  	$new_tab['#link']['url'] = Drupal\Core\Url::fromUri('internal:/form/lobbyist-finder-modal');
+  	$new_tab['#theme'] = "menu_local_task";
+  	$new_tab['#active'] = FALSE;
+  	$new_tab['#access'] = $data['tabs'][0]['multiple_registration.local_tasks:in_house_lobbyist']['#access'];
+  	$data['tabs'][0]['multiple_registration.local_tasks:modal_lobbyist'] = $new_tab;
+  	foreach ($data['tabs'][0] as $type => &$tab) {
+        if ($tab['#link']['title'] == t('Create new In-house lobbyist account')) {
+            $tab['#link']['title'] = t('Register as In-house lobbyist');
+        }
+        if ($tab['#link']['title'] == t('Create new Consultant lobbyist account')) {
+            $tab['#link']['title'] = t('Register as Consultant lobbyist');
+        }
+        if ($tab['#link']['title'] == t('Reset your password')) {
+            $tab['#link']['title'] = t('Forgot your password?');
+        }
+        if ($tab['#link']['title'] == t("I Don't know")) {
+	        $tab['#link']['localized_options']['attributes']['class'][] = 'webform-dialog button';
+	        $tab['#link']['localized_options']['attributes']['data-dialog-options'][] = '{"width":650,"height":500}';
+        }
+        unset($tab);
+    }
+  }
+}

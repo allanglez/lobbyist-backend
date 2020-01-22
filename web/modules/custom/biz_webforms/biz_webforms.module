@@ -1,0 +1,65 @@
+<?php
+	
+use Drupal\Core\Form\FormStateInterface;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Drupal\biz_webforms\Entity\BizWebformSubmission;
+use  \Drupal\user\Entity\User;
+use Drupal\Core\Render\Markup;
+
+function biz_webforms_mail($key, &$message, $params) {
+  $submission_id = $params['submission_id'];
+  $link =  Markup::create("<a href ='http://dev-lobbyist-frontend.pantheonsite.io/in-house-account-home/in-house-activity-view?id=".$submission_id."'>click to check</a>");
+  $body = t("There is a new comment in this activity,");
+  $options['langcode'] = $message['langcode'];
+  $message['subject'] = t("New message");
+  $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+  $message['format'] = 'text/html';
+  $message['body'][] = $body . $link ;
+}
+
+function biz_webforms_entity_presave(Drupal\Core\Entity\EntityInterface $entity) {
+  if ($entity->getEntityType()->id() == 'comment') {
+    $all_emails = "";
+    $author_email = $entity->getAuthorName();
+    $user = user_load_by_mail($author_email);
+   
+    if($user){
+      //Get the submission Id
+      $nid = intval($entity->get('entity_id')->target_id);
+      $node_storage = \Drupal::entityTypeManager()->getStorage('node');
+      $node = $node_storage->load($nid);
+      $submission_id = $node->get('field_submission_id')->getString();
+
+      //Updated comment author 
+      $entity->setOwner($user);
+      $entity->setOwnerId($user->id());
+      $entity->updateOriginalValues();
+      $name= $user->getUsername();
+      
+      //Get all commissioner emails
+      $ids = \Drupal::entityQuery('user')
+      ->condition('status', 1)
+      ->condition('roles', 'role_administrator')
+      ->execute();
+      $commissioner_users = User::loadMultiple($ids);
+      
+      foreach($commissioner_users as $commissioner_user){
+        $commissioner_user_email = $commissioner_user->get('mail')->value;
+        $delivery_emails[] = $commissioner_user_email;
+      }
+      $all_emails = implode(",", $delivery_emails);
+      //Send email
+      $mailManager = \Drupal::service('plugin.manager.mail');
+    	$params['submission_id'] = $submission_id;
+    	$langcode = $user->getPreferredLangcode();
+    	$module = 'biz_webforms';
+    	$key = 'mail';	
+    	$result = $mailManager->mail($module, $key, $all_emails, $langcode, $params, NULL, TRUE);
+    	$result = $mailManager->mail($module, $key, $author_email, $langcode, $params, NULL, TRUE);
+    }
+  }
+}
+
+
+

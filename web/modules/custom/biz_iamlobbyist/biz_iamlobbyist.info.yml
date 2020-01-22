@@ -1,0 +1,8 @@
+name: I am Lobbyist modal form enhancements
+description: Bizont enhancements for I am Lobbyist modal form
+package: Custom
+type: module
+version: 1.0
+core: 8.x
+dependencies:
+  - drupal:system (>=8.6.0)

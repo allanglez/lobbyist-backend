@@ -1,0 +1,46 @@
+{
+    "name": "drupal/wxt_library",
+    "description": "WxT Bootstrap sub-theme for Drupal WxT.",
+    "type": "drupal-theme",
+    "license": "GPL-2.0+",
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://packages.drupal.org/8"
+        }
+    ],
+    "require": {
+        "composer/installers": "^1.2",
+        "cweagans/composer-patches": "^1.6.0",
+        "drupal/core": "8.*",
+        "drupal/bootstrap": "3.16"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "extra": {
+        "installer-paths": {
+            "web/core": ["type:drupal-core"],
+            "web/libraries/{$name}": ["type:drupal-library"],
+            "web/modules/contrib/{$name}": ["type:drupal-module"],
+            "web/profiles/contrib/{$name}": ["type:drupal-profile"],
+            "web/themes/contrib/{$name}": ["type:drupal-theme"],
+            "drush/Commands/contrib/{$name}": ["type:drupal-drush"],
+            "web/private/scripts/quicksilver/{$name}/": ["type:quicksilver-script"],
+            "web/modules/contrib/${name}": [
+                "drupal/wxt_library"
+            ],
+            "web/profiles/${name}": [
+                "type:drupal-profile"
+            ],
+            "web/themes/contrib/${name}": [
+                "drupal/wxt_bootstrap"
+            ],
+            "drush/contrib/{$name}": [
+                "type:drupal-drush"
+            ]
+        },
+        "enable-patching": true,
+        "patches": { }
+    }
+}
+
