@@ -242,7 +242,7 @@ workflows:
       - build_php
       - deploy_to_pantheon:
           requires:
-            - static_tests
+            # - static_tests
             - build_php
       - visual_regression_test:
           requires:
