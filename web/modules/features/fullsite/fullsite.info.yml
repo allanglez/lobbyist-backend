@@ -1,0 +1,39 @@
+name: FullSite
+description: 'whole sited exported by features'
+type: module
+core: 8.x
+dependencies:
+  - action
+  - address
+  - block
+  - block_class
+  - block_content
+  - comment
+  - content_translation
+  - field
+  - help
+  - language
+  - lightning_core
+  - mask
+  - menu_ui
+  - multiple_registration
+  - node
+  - node_export
+  - options
+  - path
+  - rdf
+  - rest
+  - search
+  - serialization
+  - system
+  - taxonomy
+  - telephone
+  - telephone_formatter
+  - text
+  - user
+  - views
+  - webform
+  - webform_views
+  - wxt_library
+version: '1.0'
+core_incompatible: false

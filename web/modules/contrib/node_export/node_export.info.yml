@@ -1,0 +1,13 @@
+name: Node Export
+type: module
+description: 'Allows users to export content and then import into another Drupal installation.'
+# core: 8.x
+configure: node_export.config
+dependencies:
+  - drupal:action
+
+# Information added by Drupal.org packaging script on 2019-04-01
+version: '8.x-1.x-dev'
+core: '8.x'
+project: 'node_export'
+datestamp: 1554127093

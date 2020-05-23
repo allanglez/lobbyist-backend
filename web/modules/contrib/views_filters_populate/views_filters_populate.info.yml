@@ -1,0 +1,13 @@
+name: 'Views Filters Populate'
+type: module
+description: 'Allows one filter to populate other filters value.'
+package: 'Views'
+# core: 8.x
+dependencies:
+  - views_ui
+
+# Information added by Drupal.org packaging script on 2019-02-20
+version: '8.x-1.1'
+core: '8.x'
+project: 'views_filters_populate'
+datestamp: 1550678296

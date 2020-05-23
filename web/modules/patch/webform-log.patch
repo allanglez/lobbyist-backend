@@ -1,0 +1,100 @@
+diff --git a/modules/webform_submission_log/src/WebformSubmissionLogLogger.php b/modules/webform_submission_log/src/WebformSubmissionLogLogger.php
+index 0aa0cd3..462f1bc 100644
+--- a/modules/webform_submission_log/src/WebformSubmissionLogLogger.php
++++ b/modules/webform_submission_log/src/WebformSubmissionLogLogger.php
+@@ -66,19 +66,26 @@ class WebformSubmissionLogLogger implements LoggerInterface {
+     $context += [
+       'handler_id' => '',
+       'operation' => '',
+-      'data' => [],
++      'data' => $webform_submission->logData(),
+     ];
+ 
+     // Cast message to string.
+     $message = (string) $message;
+     $message_placeholders = $this->parser->parseMessagePlaceholders($message, $context);
++   
++    $data = $webform_submission->getData();
++    $user_id = $context['uid'];     
++     
++    if(isset($data['user_uid']) && !empty($data['user_uid'])){
++      $user_id = $data['user_uid'];
++    }
+ 
+     $this->logManager->insert([
+       'webform_id' => $webform_submission->getWebform()->id(),
+       'sid' => $webform_submission->id(),
+       'handler_id' => $context['handler_id'],
+       'operation' => $context['operation'],
+-      'uid' => $context['uid'],
++      'uid' => $user_id,
+       'message' => $message,
+       'variables' => serialize($message_placeholders),
+       'data' => serialize($context['data']),
+@@ -86,4 +93,4 @@ class WebformSubmissionLogLogger implements LoggerInterface {
+     ]);
+   }
+ 
+-}
++}
+\ No newline at end of file
+diff --git a/src/Entity/WebformSubmission.php b/src/Entity/WebformSubmission.php
+index 0f7ecc8..004a65f 100644
+--- a/src/Entity/WebformSubmission.php
++++ b/src/Entity/WebformSubmission.php
+@@ -469,6 +469,42 @@ class WebformSubmission extends ContentEntityBase implements WebformSubmissionIn
+   public function getToken() {
+     return $this->token->value;
+   }
++  
++  /**
++   * Returns data which can be used for logging an event.
++   *
++   * For example, if a webform submission has been modified, the data is
++   * what has changed.
++   *
++   * @return array
++   *   Associative array with "is-new" (boolean) and "changed", itself an
++   *   associative array of field keys with their before and after
++   *   values, if possible.
++   */
++  public function logData() {
++    $return = [
++      'is-new' => $this->isNew(),
++      'changed' => [],
++    ];
++    if ($return['is-new']) {
++      return $return;
++    }
++    $original = $this->getOriginalData();
++    $data = $this->getData();
++    foreach ($data as $key => $value) {
++      if (isset($original[$key]) && $original[$key] == $value) {
++        continue;
++      }
++      else {
++        $return['changed'][$key] = [
++          'from' => empty($original[$key]) ? '' : $original[$key],
++          'to' => $value,
++        ];
++      }
++    }
++    return $return;
++  }
++
+ 
+   /**
+    * {@inheritdoc}
+diff --git a/src/WebformSubmissionStorage.php b/src/WebformSubmissionStorage.php
+index b73ed44..939fd12 100644
+--- a/src/WebformSubmissionStorage.php
++++ b/src/WebformSubmissionStorage.php
+@@ -1435,7 +1435,7 @@ class WebformSubmissionStorage extends SqlContentEntityStorage implements Webfor
+       'uid' => $this->currentUser->id(),
+       'webform_submission' => $webform_submission,
+       'handler_id' => NULL,
+-      'data' => [],
++      'data' => $webform_submission->logData(),
+       'link' => $webform_submission->toLink($this->t('Edit'), 'edit-form')->toString(),
+     ];
+ 

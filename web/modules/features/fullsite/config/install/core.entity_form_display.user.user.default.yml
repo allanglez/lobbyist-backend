@@ -1,0 +1,130 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.user.user.field_business_name
+    - field.field.user.user.field_first_name
+    - field.field.user.user.field_first_name_consultant_
+    - field.field.user.user.field_last_name
+    - field.field.user.user.field_last_name_consultant_
+    - field.field.user.user.field_legal_organization
+    - field.field.user.user.field_operating_organization
+    - field.field.user.user.field_position
+    - field.field.user.user.field_street_address
+    - field.field.user.user.field_telephone
+  module:
+    - address
+    - mask
+    - telephone
+    - user
+id: user.user.default
+targetEntityType: user
+bundle: user
+mode: default
+content:
+  account:
+    weight: -10
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  contact:
+    weight: 5
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_business_name:
+    weight: 17
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  field_first_name:
+    weight: 12
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  field_first_name_consultant_:
+    weight: 18
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  field_last_name:
+    weight: 13
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  field_last_name_consultant_:
+    weight: 19
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  field_legal_organization:
+    weight: 7
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  field_operating_organization:
+    weight: 8
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  field_position:
+    weight: 15
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textfield
+    region: content
+  field_street_address:
+    weight: 16
+    settings: {  }
+    third_party_settings: {  }
+    type: address_default
+    region: content
+  field_telephone:
+    weight: 20
+    settings:
+      placeholder: ''
+    third_party_settings:
+      mask:
+        value: 000-000-0000
+        translation_help:
+          table: ''
+        reverse: 0
+        clearifnotmatch: 0
+        selectonfocus: 0
+    type: telephone_default
+    region: content
+  language:
+    weight: 0
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  timezone:
+    weight: 6
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+hidden:
+  langcode: true

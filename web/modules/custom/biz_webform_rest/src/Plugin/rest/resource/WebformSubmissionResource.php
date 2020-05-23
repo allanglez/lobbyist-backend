@@ -7,7 +7,7 @@ use Drupal\webform\WebformSubmissionForm;
 use Drupal\rest\Plugin\ResourceBase;
 use Drupal\rest\ModifiedResourceResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-
+use Drupal\biz_business_rules\Controller\BusinessRulesFunctions;
 /**
  * Creates a resource for retrieving webform submission data.
  *
@@ -117,10 +117,14 @@ class WebformSubmissionResource extends ResourceBase {
     // Check for a submission.
     if (!empty($webform_submission)) {
       $submission_webform_id = $webform_submission->get('webform_id')->getString();
-
+      $today = date("Y-m-d"); 
+      $dates = BusinessRulesFunctions::getDatesCalendarEnd();
       // Check webform_id.
       if ($submission_webform_id == $webform_id) {
-
+        if($today >= $dates['from'] && $today <= $dates['to'] && 
+        $submission_webform_id  == 'add_a_lobbying_activity'  && isset($webform_data['status']) ){
+          $webform_data['status'] = 'active';
+        } 
         foreach ($webform_data as $field => $value) {
           $webform_submission->setElementData($field, $value);
         }
@@ -133,8 +137,48 @@ class WebformSubmissionResource extends ResourceBase {
           return new ModifiedResourceResponse($errors);
         }
         else {
+          $business_rules = new BusinessRulesFunctions;
+          $module = $business_rules->module;
+          $key = $business_rules->key;
+          $mailManager = \Drupal::service('plugin.manager.mail');
+          $user_id = $webform_submission->getOwnerId();
+          $owner =  user_load($user_id);
+          $mail = $owner->getEmail();
+          $langcode = $owner->getPreferredLangcode();
+          
+          if(!$business_rules->isFirstActivity($submission_webform_id, $user_id, TRUE) &&  $webform_data['status'] == 'active' && in_array($submission_webform_id,['add_a_lobbying_activity','add_a_lobbying_activity_consulta'] )){
+              $params_first['subject'] = t("First activity approved");
+              $params_first['body'] = \Drupal::config('biz_business_rules.settings')->get('commissioner_approve_first_act');
+              $result_commisioner = $mailManager->mail($module, $key, $mail, $langcode, $params_first, NULL, TRUE);
+          }
           // Return submission ID.
           $webform_submission = WebformSubmissionForm::submitWebformSubmission($webform_submission);
+
+          switch($submission_webform_id){
+            case 'add_a_lobbying_activity':
+               if($today >= $dates['from'] && $today <= $dates['to'] && isset($webform_data['user_uid']) && !empty($webform_data['user_uid'])) {
+                $params['subject'] = t("Activity Updated");
+                $params['body'] = \Drupal::config('biz_business_rules.settings')->get('in_house_update_before_end_calendar');
+                $result = $mailManager->mail($module, $key, $mail, $langcode, $params, NULL, TRUE);
+              }
+            break;
+            case 'add_a_lobbying_activity_consulta': 
+              if(!isset($webform_data['start_date'])){
+                  $webform_submission_data = WebformSubmission::load($webform_submission->id());
+                  $webform_data = $webform_submission_data->getData();
+              }
+              $today = date("Y-m-d"); // Today
+              $new_start_dates = BusinessRulesFunctions::getDatesContract($webform_data['start_date']);
+              $from = $new_start_dates['from'];
+              $to = $new_start_dates['to'];            
+              if($today >= $from && $today <= $to && isset($webform_data['user_uid']) && !empty($webform_data['user_uid'])&& $webform_data['user_uid'] == $user_id  ){
+                \Drupal::logger("biz_webform_rest")->notice('Send email consultant certify:' . $mail);
+                $params['subject'] = t("Activity Updated");
+                $params['body'] = \Drupal::config('biz_business_rules.settings')->get('consultant_certify');
+                $result = $mailManager->mail($module, $key, $mail, $langcode, $params, NULL, TRUE);
+              }
+            break;
+          }
         }
 
         // Return submission ID.

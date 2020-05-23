@@ -1,0 +1,281 @@
+<?php
+use Drupal\biz_business_rules\Controller\BusinessRulesFunctions;
+use Drupal\webform\Entity\Webform;
+use Drupal\webform\Entity\WebformSubmission;
+use Drupal\webform\WebformSubmissionForm;
+use Drupal\Core\Render\Markup;
+
+function biz_business_rules_entity_presave(Drupal\Core\Entity\EntityInterface $entity) {
+  switch($entity->getEntityType()->id()){
+    case 'comment':
+      notify_new_message($entity);
+    break;
+  }
+}
+
+/** Executed every day at midnight
+  * Validate:
+  *   If today is December 31st: 
+  *      Send an email to notify the lobbyist
+  *   If today is January 15th && the activity not changed && not exist a new activity: 
+  *      Send an email to notify the lobbyist and the admin
+  *      Changed status to "About to be Not in compliance"
+  *   If today is January 31st  && the activity not changed && not exist a new activity
+  *      Send an email to notify the lobbyist and admin
+  *      Change status to "Not in compliance"
+  */
+function notify_in_house_lobbyist_end_of_calendar($date){
+  $validate = \Drupal::config('biz_business_rules.settings')->get('wave_for_not_validate');
+  $mailManager = \Drupal::service('plugin.manager.mail');
+  $business_rules = new BusinessRulesFunctions;
+  $module = $business_rules->module;
+  $key = $business_rules->key;
+  $params['subject'] = t("End of calendar notice");
+  switch($date){
+    case '12-31':
+      $params['body'] = \Drupal::config('biz_business_rules.settings')->get('in_house_end_31_dec');
+      $users = BusinessRulesFunctions::get_all_mail_from_role('in_house_lobbyist');
+    break;
+    case '01-15':
+      $params['body'] = \Drupal::config('biz_business_rules.settings')->get('in_house_end_15_jan');
+      // Changed status to "About to be Not in compliance"
+      BusinessRulesFunctions::updatedActiveActivities('add_a_lobbying_activity', 'status', 'about-not-compliance', 'active');
+      $users = BusinessRulesFunctions::getInHouseEmailsNotCertifyYet();
+    break;
+    case '01-31':
+      if(!empty($all_emails)){
+        $params['body'] = \Drupal::config('biz_business_rules.settings')->get('admin_end_31_jan');
+        $delivery_emails = $business_rules->get_all_mail_from_role('role_administrator');
+        foreach($delivery_emails as $delivery_email){
+          $result_commisioner = $mailManager->mail($module, $key, $delivery_email['mail'], $delivery_email['langcode'], $params, NULL, TRUE);
+        }
+      }
+      $users = BusinessRulesFunctions::getInHouseEmailsNotCertifyYet();
+      $params['body'] = \Drupal::config('biz_business_rules.settings')->get('in_house_end_31_jan');
+      if(!$validate){
+        //Change status to "Not in compliance"
+        BusinessRulesFunctions::updatedActiveActivities('add_a_lobbying_activity', 'status', 'non-compliant', 'about-not-compliance');
+        BusinessRulesFunctions::updatedActiveActivities('add_a_lobbying_activity', 'frontend_status', 'active', 'non-compliant');
+      }
+    break;
+  }
+  if(!$validate){
+    foreach($users as $user){
+      if(is_object($user)){
+        $user = json_decode(json_encode($user), true);
+      }
+      $result = $mailManager->mail($module, $key, $user['mail'], $user['langcode'], $params, NULL, TRUE);
+    }
+  }
+}
+
+
+/** Executed every day at midnight
+  * Validate:
+  *   If start date is prior 15 days as of today: 
+  *      Send an email to notify the lobbyist
+  *   If Start date is prior 6 Months + 15 days as of today: 
+  *      Send an email to notify the lobbyist and the admin
+  *      Changed status to "About to be Not in compliance"
+  *   If Start date is prior 6 Months + 30 days as of today
+  *      Send an email to notify the lobbyist and admin
+  *      Change status to "Not in compliance"
+  */
+function notify_consultant_lobbyist(){
+  $today = date("Y-m-d");
+  $validate = \Drupal::config('biz_business_rules.settings')->get('wave_for_not_validate');
+  $business_rules = new BusinessRulesFunctions;
+  $module = $business_rules->module;
+  $key = $business_rules->key;
+  $mailManager = \Drupal::service('plugin.manager.mail');
+  $get_ids  = BusinessRulesFunctions::getConsultantNotCertifyYet();
+  $params['subject'] = t("Update your activity");
+  $params['body'] = "";
+  $sids = array_column($get_ids, 'sid');
+  $submissions = \Drupal::entityTypeManager()->getStorage('webform_submission')->loadMultiple($sids);
+  
+  foreach($submissions as $submission){
+    $activity_data = $submission->getData();
+    // creates DateTime objects 
+    $new_start_dates = BusinessRulesFunctions::getDatesContract($activity_data['start_date']);
+    $from = $new_start_dates['from'];
+    $middle = $new_start_dates['middle'];
+    $to = $new_start_dates['to'];
+    $end_date = $activity_data['end_date']; 
+
+    $new_end_dates = BusinessRulesFunctions::getDatesContract($end_date);
+    $from_end = $new_end_dates['from'];
+    $middle_end = $new_end_dates['middle'];
+    $to_end = $new_end_dates['to'];
+    $end_date = $activity_data['end_date']; 
+    
+    $owner = $submission->getOwnerId();
+    $owner =  user_load($owner);
+    $mail = $owner->getEmail();
+    $langcode = $owner->getPreferredLangcode();
+    
+    $last_updated = BusinessRulesFunctions::getLastUpdatedByOwner('add_a_lobbying_activity_consulta',$submission->id(),$submission->getOwnerId());
+
+    switch(TRUE){
+      case $from == $today:
+        \Drupal::logger("biz_business_rules")->notice("Start date prior 6 months- submission_id: " . $submission->id());
+        $link = \Drupal::config('biz_business_rules.settings')->get('front_base_url') . "consultant-account-home/consultant-activity-view?id=". $submission->id();
+        $params['body'] = \Drupal::config('biz_business_rules.settings')->get('consultant_prior_6_months');
+        $params['body'] = str_replace('{{link}}', $link, $params['body']);
+        
+      break;
+      case $middle == $today:
+        \Drupal::logger("biz_business_rules")->notice("Start date prior 6 months +15days- submission_id: " . $submission->id());
+        $params['body'] = \Drupal::config('biz_business_rules.settings')->get('consultant_prior_6_months_plus_15');
+      break;
+      case $to == $today:
+        \Drupal::logger("biz_business_rules")->notice("Start date prior 6 months +30days- submission_id: " . $submission->id());
+        $params_commisioner['subject'] = t("Consultant non compliance");
+        $params_commisioner['body'] = \Drupal::config('biz_business_rules.settings')->get('admin_end_consultant_activity');
+        if(!$validate){
+          $delivery_emails = $business_rules->get_all_mail_from_role('role_administrator');
+          foreach($delivery_emails as $delivery_email){
+            $result_commisioner = $mailManager->mail($module, $key, $delivery_email['mail'], $delivery_email['langcode'], $params_commisioner, NULL, TRUE);
+          }
+          $params['body'] = \Drupal::config('biz_business_rules.settings')->get('consultant_prior_6_months_plus_30');
+          
+          BusinessRulesFunctions::updatedActiveActivities('add_a_lobbying_activity_consulta', 'status', 'non-compliant', NULL, $submission->id());
+          BusinessRulesFunctions::updatedActiveActivities('add_a_lobbying_activity_consulta', 'frontend_status', 'non-compliant', NULL, $submission->id());
+        }
+      break;
+      case $today == $end_date:
+        \Drupal::logger("biz_business_rules")->notice("End date prior 6 months +1day- submission_id: " . $submission->id());
+        $params['body'] = \Drupal::config('biz_business_rules.settings')->get('consultant_end_contract');
+      break;
+      case $today == $middle_end:
+        \Drupal::logger("biz_business_rules")->notice("End date prior 6 months +15days- submission_id: " . $submission->id());
+        $params['body'] = \Drupal::config('biz_business_rules.settings')->get('consultant_end_contract_plus_15');
+      break;
+      case $today == $to_end:
+        \Drupal::logger("biz_business_rules")->notice("End date prior 6 months +30days- submission_id: " . $submission->id()); 
+        if(!$validate){     
+          $params_commisioner['subject'] = t("Consultant non compliance");
+          $params_commisioner['body'] = \Drupal::config('biz_business_rules.settings')->get('admin_contract_end_date');
+          $delivery_emails = $business_rules->get_all_mail_from_role('role_administrator');
+          foreach($delivery_emails as $delivery_email){
+            $result_commisioner = $mailManager->mail($module, $key, $delivery_email['mail'], $delivery_email['langcode'], $params_commisioner, NULL, TRUE);
+          }
+          BusinessRulesFunctions::updatedActiveActivities('add_a_lobbying_activity_consulta', 'status', 'non-compliant', NULL, $submission->id());
+          BusinessRulesFunctions::updatedActiveActivities('add_a_lobbying_activity_consulta', 'frontend_status', 'non-compliant', NULL, $submission->id());   
+        } 
+        $params['body'] = \Drupal::config('biz_business_rules.settings')->get('consultant_end_contract_plus_30');
+      break;
+    }
+    
+    if(!$validate && (!($last_updated >= $from  && $last_updated <= $to)  || ($end_date > $to && !empty($params['body'])))){
+      $result = $mailManager->mail($module, $key, $mail, $langcode, $params, NULL, TRUE);
+    }
+  }
+}
+
+/** Execute when a comment is made in activity
+  * Send an email to notify the lobbyist and the admin
+  *
+  */
+function notify_new_message($entity){
+  $all_emails = "";
+  $author_email = $entity->getAuthorName();
+  $user = user_load_by_mail($author_email);
+  $business_rules = new BusinessRulesFunctions;
+  $module = $business_rules->module;
+  $key = $business_rules->key;
+  $mailManager = \Drupal::service('plugin.manager.mail');
+  $front_base_url = \Drupal::config('biz_lobbyist_registration.settings')->get('front_base_url');
+  if($user){
+    //Get the submission Id
+    $nid = intval($entity->get('entity_id')->target_id);
+    $node_storage = \Drupal::entityTypeManager()->getStorage('node');
+    $node = $node_storage->load($nid);
+    $submission_id = $node->get('field_submission_id')->getString();
+
+    //Updated comment author 
+    $entity->setOwner($user);
+    $entity->setOwnerId($user->id());
+    $entity->updateOriginalValues();
+    $name= $user->getUsername();
+    
+    // Load the webform submission.
+    $webform_submission = WebformSubmission::load($submission_id);
+    $owner_id_submission = $webform_submission->getOwnerId();
+    $owner_submission =  user_load($owner_id_submission);
+    $owner_roles = $owner_submission->getRoles();
+    $comment_body = $entity->get('comment_body')->value;
+    if($webform_submission->getOwnerId() == $user->id()){
+      $first_name = "";
+      $last_name = "";
+      if(in_array('in_house_lobbyist', $owner_roles)){
+          $first_name = $user->get('field_first_name')->value;
+          $last_name = $user->get('field_last_name')->value;
+      }elseif(in_array('consultant_lobbyist', $owner_roles)){
+          $first_name = $user->get('field_first_name_consultant_')->value;
+          $last_name = $user->get('field_last_name_consultant_')->value;
+      }
+      $name = $first_name . ' ' . $last_name; 
+      \Drupal::logger("biz_business_rules:comment")->notice(json_encode($name));
+      //Get all commissioner emails
+      $commissioner_users = $business_rules->get_all_mail_from_role('role_administrator');
+      \Drupal::logger("biz_business_rules:commisioners")->notice(json_encode($commissioner_users));
+    	$body = \Drupal::config('biz_business_rules.settings')->get('lobbyist_new_comment');
+    	$body = str_replace('{{message}}', $comment_body, $body);
+    	$body = str_replace('{{name}}', $name, $body);
+    	$params_commissioner['body'] = $body;
+    	$params_commissioner['subject'] = t("New message");
+      foreach($commissioner_users as $commissioner_user){
+        $result = $mailManager->mail($module, $key, $commissioner_user['mail'], $commissioner_user['langcode'], $params_commissioner, NULL, TRUE);
+        \Drupal::logger("biz_business_rules")->notice("Send email to commisioner, about new comment ". json_encode($commissioner_user));
+      }
+    }else{
+      $link =  Markup::create("<a href ='". $front_base_url ."/in-house-account-home/in-house-activity-view?id=".$submission_id."'>click to check</a>");
+      $body = \Drupal::config('biz_business_rules.settings')->get('admin_new_comment');
+      $body = str_replace('{{message}}', $comment_body, $body);
+      $body = str_replace('{{link}}', $link, $body);
+      $params['body'] = $body;
+    	$params['subject'] = t("New message");
+      $result = $mailManager->mail($module, $key, $owner_submission->getEmail(), $owner_submission->getPreferredLangcode(), $params, NULL, TRUE);
+      \Drupal::logger("biz_business_rules")->notice("Send email to lobbyist, about new comment ". json_encode($owner_submission->getEmail()));
+    }
+  }
+}
+
+
+function biz_business_rules_mail($key, &$message, $params) {
+  $options['langcode'] = $message['langcode'];
+  $message['subject'] = $params['subject'];
+  $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+  $message['format'] = 'text/html';
+  $message['body'][] = $params['body'];
+}
+
+/**
+ * Implements hook_cronapi().
+ */
+function biz_business_rules_cron(){
+  //In-house end of calendar year
+  
+  $in_house_end_calendar = ['12-31', '01-15', '01-31'];
+  $current_date = date("m-d");
+  $current_date = '01-31';
+  if(in_array($current_date, $in_house_end_calendar)){
+    notify_in_house_lobbyist_end_of_calendar($current_date);
+  }
+
+  notify_consultant_lobbyist();
+
+}
+
+
+
+/**
+ * The callback for the cron job,
+ */
+/*
+function biz_business_rules_my_cron_job() {
+
+}
+*/
+

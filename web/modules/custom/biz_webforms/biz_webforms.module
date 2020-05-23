@@ -7,9 +7,11 @@ use Drupal\biz_webforms\Entity\BizWebformSubmission;
 use  \Drupal\user\Entity\User;
 use Drupal\Core\Render\Markup;
 
+/*
 function biz_webforms_mail($key, &$message, $params) {
   $submission_id = $params['submission_id'];
-  $link =  Markup::create("<a href ='http://dev-lobbyist-frontend.pantheonsite.io/in-house-account-home/in-house-activity-view?id=".$submission_id."'>click to check</a>");
+  $base_url = \Drupal::config('biz_lobbyist_registration.settings')->get('base_url');
+  $link =  Markup::create("<a href ='".$base_url."/in-house-account-home/in-house-activity-view?id=".$submission_id."'>click to check</a>");
   $body = t("There is a new comment in this activity,");
   $options['langcode'] = $message['langcode'];
   $message['subject'] = t("New message");
@@ -17,7 +19,9 @@ function biz_webforms_mail($key, &$message, $params) {
   $message['format'] = 'text/html';
   $message['body'][] = $body . $link ;
 }
+*/
 
+/*
 function biz_webforms_entity_presave(Drupal\Core\Entity\EntityInterface $entity) {
   if ($entity->getEntityType()->id() == 'comment') {
     $all_emails = "";
@@ -42,24 +46,26 @@ function biz_webforms_entity_presave(Drupal\Core\Entity\EntityInterface $entity)
       ->condition('status', 1)
       ->condition('roles', 'role_administrator')
       ->execute();
-      $commissioner_users = User::loadMultiple($ids);
-      
-      foreach($commissioner_users as $commissioner_user){
-        $commissioner_user_email = $commissioner_user->get('mail')->value;
-        $delivery_emails[] = $commissioner_user_email;
-      }
-      $all_emails = implode(",", $delivery_emails);
-      //Send email
+      //Email data
       $mailManager = \Drupal::service('plugin.manager.mail');
     	$params['submission_id'] = $submission_id;
     	$langcode = $user->getPreferredLangcode();
     	$module = 'biz_webforms';
     	$key = 'mail';	
-    	$result = $mailManager->mail($module, $key, $all_emails, $langcode, $params, NULL, TRUE);
-    	$result = $mailManager->mail($module, $key, $author_email, $langcode, $params, NULL, TRUE);
+      if(!empty($ids)){
+        $commissioner_users = User::loadMultiple($ids);
+        foreach($commissioner_users as $commissioner_user){
+          $commissioner_user_email = $commissioner_user->get('mail')->value;
+          $delivery_emails[] = $commissioner_user_email;
+        }
+        $all_emails = implode(",", $delivery_emails);
+      	$result = $mailManager->mail($module, $key, $all_emails, $langcode, $params, NULL, TRUE);
+      }
+      $result = $mailManager->mail($module, $key, $author_email, $langcode, $params, NULL, TRUE);
     }
   }
 }
+*/
 
 
 

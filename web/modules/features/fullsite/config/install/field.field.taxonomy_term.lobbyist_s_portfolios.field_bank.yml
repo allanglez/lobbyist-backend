@@ -1,0 +1,34 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.taxonomy_term.field_bank
+    - taxonomy.vocabulary.lobbyist_s_portfolios
+  content:
+    - 'taxonomy_term:lobbyist_s_portfolios:5fcfc9d7-0ba8-4b36-8957-a0d8b65f94fa'
+    - 'taxonomy_term:lobbyist_s_portfolios:65ae8ad8-20af-4180-b52c-9d11aed36ce5'
+id: taxonomy_term.lobbyist_s_portfolios.field_bank
+field_name: field_bank
+entity_type: taxonomy_term
+bundle: lobbyist_s_portfolios
+label: Bank
+description: ''
+required: false
+translatable: false
+default_value:
+  -
+    target_uuid: 5fcfc9d7-0ba8-4b36-8957-a0d8b65f94fa
+  -
+    target_uuid: 65ae8ad8-20af-4180-b52c-9d11aed36ce5
+default_value_callback: ''
+settings:
+  handler: 'default:taxonomy_term'
+  handler_settings:
+    target_bundles:
+      lobbyist_s_portfolios: lobbyist_s_portfolios
+    sort:
+      field: name
+      direction: asc
+    auto_create: false
+    auto_create_bundle: ''
+field_type: entity_reference
